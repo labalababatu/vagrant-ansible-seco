@@ -1,0 +1,122 @@
+---
+
+  - name: Provisionamento de um ambiente  nginx, mariadb, php-fpm e wordpress
+    hosts: all
+    user: vagrant
+    become: yes
+
+ # Criar repositório
+    tasks:
+      - name: Configurar o repositório
+        yum:
+          name: epel-release
+          state: present
+
+   # Instalar nginx
+      - name: Instalar o nginx
+        yum:
+          name: nginx
+          state: present
+
+   # Iniciar nginx
+      - name: Iniciar nginx
+        service:
+          name: nginx
+          state: started
+
+   # Criar php info
+      - name: Criando arquivo php info
+        copy:
+          dest: "/usr/share/nginx/html/info.php"
+          content: <?php phpinfo() ?>
+
+  # Desabilitar SELinux
+      - name: Desabilitar o SELinux
+        selinux:
+          state: disabled
+
+  # Arquivo de configuração do nginx
+      - name: Copiar o arquivo de configuração do nginx para o diretório
+        template: src=nginx.conf dest=/etc/nginx/
+
+  # Reiniciar o serviço do nginx
+      - name: Reiniciar o serviço do nginx
+        service: name=nginx state=started enabled=true
+
+  # Instalação do mariadb server
+      - name: Instalar mariadb
+        yum:
+          name: mariadb-server
+          state: present
+
+  # Iniciar o serviço do mariadb
+      - name: Iniciar o serviço do mariadb
+        service:
+          name: mariadb
+          state: started
+  # Instalar python para suporte das bibliotecas do mysql
+      - name: Instalar o python para suporte das bibliotecas do MySQL
+        yum: pkg=MySQL-python state=latest
+
+  # Iniciar o MySQL e habilitar o reboot
+      - name: Iniciar o MySQL e habilitar o reboot
+        service: name=mariadb state=started enabled=true
+
+  # Criação do banco de dados mysql
+      - name: Criar novo banco de dados mysql com o nome rivendel
+        mysql_db:
+          name: rivendel
+          state: present
+
+  # Criar usuário no banco de dados mysql
+      - mysql_user:
+          name: user
+          password: user
+          priv: '*.*:ALL'
+          state: present
+
+  # Task para instalação do PHP-FPM e suas dependências
+      - name: Instalar php-fpm e suas dependências
+        yum: name={{item}} state=present
+        with_items:
+             - php
+             - php-fpm
+             - php-mysql
+
+  # Iniciar o serviço do PHP-FPM
+      - name: Iniciar o serviço do php-fpm
+        service:
+           name: php-fpm
+           state: started
+
+  # Copiar o arquivo de configuração do php-fpm para o diretório
+      - name: Copiar o arquivo de configuração do www.conf
+        template: src=www.conf dest=/etc/php-fpm.d/
+
+   # Copiar o arquivo de configuração do php.ini para o diretório
+      - name: Copiar o arquivo de configuração do php.ini
+        template: src=php.ini dest=/etc
+
+   # Reiniciar o serviço do php-fpm
+      - name: Reiniciar o serviço php-fpm
+        service: name=php-fpm state=started enabled=true
+
+  # Descompactar o wordpress no diretório html
+      - name: Descompactar o arquivo do wordpress
+        unarchive:
+           src: /home/marcos_fernando/lab/ansible-vagrant/vagrant-ansible-seco/wordpress-4.9.7.tar.gz
+           dest: /usr/share/nginx/html/
+           remote_src: yes
+
+   # Alterando as permissões da pasta wordpress
+      - name: Alterando as permissões da pasta wordpress
+        file:
+           path: "/usr/share/nginx/html/wordpress"
+           state: directory
+           owner: nginx
+           group: nginx
+           mode: 0777
+
+   # Reiniciar o serviço do nginx
+      - name: Reiniciar o serviço nginx
+        service: name=nginx state=started enabled=true
