@@ -1,0 +1,112 @@
+Task Wordpress Receita manual para o Ansible
+
+1º - yum install epel-release
+
+2º - yum install nginx mariadb mariadb-server php php-fpm php-common php-mysql php-gd php-xml php-mbstring php-mcrypt
+
+3º - 
+   systemctl start nginx
+   systemctl start mariadb
+   systemctl start php-fpm
+
+4º cd /opt
+   wget https://wordpress.org/latest.tar.gz
+
+5º Extraindo o wordpress no diretório html
+
+tar -xvzf latest.tar.gz -C /usr/share/nginx/html/
+
+6º Dar permissão para o diretório wordpress para root e para nginx
+
+chown -R nginx:nginx /usr/share/nginx/html/wordpress
+chmod -R 755 /usr/share/nginx/html/wordpress
+
+7º Criando o banco de dados no Mysql
+
+mysql -u root -p
+
+mysql> CREATE DATABASE rivendel;
+mysql> GRANT ALL ON rivendel.* to 'user'@'localhost' IDENTIFIED BY 'user';
+mysql> FLUSH PRIVILEGES;
+mysql> quit
+
+8º Configurando o Virtual Host
+
+diretório /etc/nginx/conf.d/rivendel.conf
+
+
+server {
+        listen 80;
+        server_name localhost;
+        root   /usr/share/nginx/html/wordpress;
+        index index.php index.html;
+        location / {
+                     try_files $uri $uri/ @handler;
+                    }
+            location ~ \.php$ {
+            #root           html;
+            fastcgi_pass   unix:/var/run/php-fpm/php-fpm.sock;
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        fastcgi_params;
+        }
+        location ~ .php$ {
+                try_files $uri @handler;
+                fastcgi_pass    127.0.0.1:9000;
+                fastcgi_index   index.php;
+                fastcgi_param SCRIPT_FILENAME /usr/share/nginx/html/wordpress$fastcgi_script_name;
+                include fastcgi_params;
+                        }
+}
+
+9º Configurar o Wordpress
+
+cd /usr/share/nginx/html/wordpress
+cp wp-config-sample.php wp-config.php
+chmod 777 wp-config.php
+chown nginx:nginx wp-config.php
+
+vi wp-config.php
+
+
+----Configuração do wp-config.php----
+
+// ** MySQL settings - You can get this info from your web host ** //
+/** The name of the database for WordPress */
+define('DB_NAME', 'rivendel');
+
+/** MySQL database username */
+define('DB_USER', 'user');
+
+/** MySQL database password */
+define('DB_PASSWORD', 'user');
+
+/** MySQL hostname */
+define('DB_HOST', 'localhost');
+
+/** Database Charset to use in creating database tables. */
+define('DB_CHARSET', 'utf8');
+
+/** The Database Collate type. Don't change this if in doubt. */
+define('DB_COLLATE', '');
+
+
+
+Mesmo com todas as informações seguidas de forma manual o mesmo gerou erro de forbidden, agora vamos arrumar a casa e corrigir erro por erro.
+
+Configurando o php.ini com o valor "cgi.fix_pathinfo=0"
+
+Editado o listen do php-fpm "listen = /var/run/php-fpm.sock" no www.conf
+
+O mesmo continuou dando erro, então fiz o apontamento no nginx.conf do php-fpm.sock "fastcgi_pass unix:/var/run/php-fpm/php-fpm.sock" após isso o mesmo leu sem erros.
+
+Agora o mesmo será passado para ansible.
+
+
+
+
+
+
+
+
+
