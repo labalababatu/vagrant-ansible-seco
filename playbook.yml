@@ -118,5 +118,14 @@
            mode: 0777
 
    # Reiniciar o serviço do nginx
-      - name: Reiniciar o serviço nginx
-        service: name=nginx state=started enabled=true
+       - name: Restart serviço nginx
+         service:
+            name: nginx
+            state: restarted
+
+   # Reinicar o serviço do php-fpm
+       - name: Restart serviço php-fpm
+         service:
+            name: php-fpm
+            state: restarted
+        
